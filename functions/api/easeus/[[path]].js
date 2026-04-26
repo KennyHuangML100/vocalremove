@@ -13,24 +13,44 @@ function buildCorsHeaders(requestHeaders) {
   };
 }
 
-function rewriteExternalUrls(value) {
-  if (typeof value === "string") {
-    if (value.startsWith("https://") || value.startsWith("http://")) {
-      return `${RELAY_PATH}?target=${encodeURIComponent(value)}`;
-    }
-    return value;
-  }
+function isHttpUrl(value) {
+  return (
+    typeof value === "string" &&
+    (value.startsWith("https://") || value.startsWith("http://"))
+  );
+}
 
+function shouldRewriteField(fieldName) {
+  const key = fieldName.toLowerCase();
+  const exactKeys = new Set([
+    "url",
+    "host",
+    "action",
+    "upload_url",
+    "uploadurl",
+    "post_url",
+    "posturl",
+    "callback_url",
+    "callbackurl",
+  ]);
+  return exactKeys.has(key);
+}
+
+function rewriteUploadablePayload(value, parentKey = "") {
   if (Array.isArray(value)) {
-    return value.map(rewriteExternalUrls);
+    return value.map((item) => rewriteUploadablePayload(item, parentKey));
   }
 
   if (value && typeof value === "object") {
     const out = {};
     for (const [k, v] of Object.entries(value)) {
-      out[k] = rewriteExternalUrls(v);
+      out[k] = rewriteUploadablePayload(v, k);
     }
     return out;
+  }
+
+  if (isHttpUrl(value) && shouldRewriteField(parentKey)) {
+    return `${RELAY_PATH}?target=${encodeURIComponent(value)}`;
   }
 
   return value;
@@ -133,7 +153,7 @@ export async function onRequest(context) {
 
   try {
     const payload = await upstreamResponse.json();
-    const rewritten = rewriteExternalUrls(payload);
+    const rewritten = rewriteUploadablePayload(payload);
     return new Response(JSON.stringify(rewritten), {
       status: upstreamResponse.status,
       statusText: upstreamResponse.statusText,
