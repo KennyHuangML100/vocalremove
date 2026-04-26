@@ -22,3 +22,4 @@ This folder contains a static snapshot clone of:
 - This is a static clone of the front-end page and assets.
 - Added `functions/api/easeus/[[path]].js` as a Cloudflare Pages proxy for API requests.
 - The front-end API prefix is adjusted to call `/api/easeus/ppc/vocal-remover/...`, which is forwarded to `https://multimedia.easeus.com/...`.
+- The proxy now rewrites external upload URLs from `upload_able` responses to `/api/easeus/relay?...`, so file upload stays on the same domain and avoids cross-origin upload failures.
